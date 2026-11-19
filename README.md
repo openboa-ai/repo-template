@@ -1,2 +1,9 @@
-# repo-template
-A small starting point for OpenBoa repositories, with contribution rules, CI and repeatable GitHub settings.
+<!-- starter:project -->
+# Repository starter
+
+A starting point for projects with pull-request checks, secret scanning and repeatable GitHub settings.
+<!-- /starter:project -->
+
+- [Start a repository and configure GitHub](docs/starter.md)
+- [Contribute and run checks locally](CONTRIBUTING.md)
+- [Report a security issue](SECURITY.md)
