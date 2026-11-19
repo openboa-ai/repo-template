@@ -48,6 +48,8 @@ def rule_payload(current, branch, qualified):
     status = by_type.get("required_status_checks")
     statuses = status.get("parameters", {}) if status else {}
     contexts = statuses.get("required_status_checks", [])
+    if any(c["context"] in CHECKS and c.get("integration_id") not in (None, -1, ACTIONS_APP) for c in contexts):
+        raise ValueError("A managed check name already belongs to another app. Preserve it and resolve the name collision.")
     verified = all(any(c["context"] == name and c.get("integration_id") == ACTIONS_APP for c in contexts)
                    for name in CHECKS)
     if qualified or verified:

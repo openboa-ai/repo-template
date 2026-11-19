@@ -63,6 +63,8 @@ class FakeGitHub:
         self.unavailable = False
         self.mismatched_app = False
         self.failed_latest = False
+        self.merged = False
+        self.associated_numbers = [7]
         self.fail_write = None
 
     def __call__(self, method, path, body=None, *, missing=False):
@@ -109,11 +111,13 @@ class FakeGitHub:
         if p.startswith("/codeowners/errors"):
             return {"errors": []}
         if p == "/pulls/7":
-            return {"base": {"ref": "main", "repo": {"id": 40}}, "head": {"ref": "ci/checks", "sha": "abc", "repo": {"id": 40}}}
+            return {"merged": self.merged, "base": {"ref": "main", "repo": {"id": 40}}, "head": {"ref": "ci/checks", "sha": "abc", "repo": {"id": 40}}}
+        if p.startswith("/commits/abc/pulls?"):
+            return [{"number": n} for n in self.associated_numbers]
         if p.startswith("/actions/runs?"):
             return {"workflow_runs": [{"id": 55, "run_attempt": 1, "head_sha": "abc", "path": settings.WORKFLOW,
                                        "repository": {"id": 40}, "head_branch": "ci/checks", "head_repository": {"id": 40},
-                                       "event": "pull_request", "pull_requests": [{"number": 7}],
+                                       "event": "pull_request", "pull_requests": [] if self.merged else [{"number": 7}],
                                        "conclusion": "failure" if self.failed_latest else "success"}]}
         if p.startswith("/actions/runs/55/attempts/1/jobs"):
             return {"jobs": [{"id": i, "head_sha": "abc", "name": name, "conclusion": "success"} for i, name in enumerate(settings.CHECKS)]}
@@ -169,4 +173,22 @@ class SettingsTests(unittest.TestCase):
         api.calls.clear()
         with self.assertRaisesRegex(ValueError, "other refs"):
             settings.execute(api, "apply", "example/project")
+        self.assertFalse(api.calls)
+
+    def test_merged_deleted_branch_still_needs_unambiguous_proof(self):
+        api = FakeGitHub()
+        api.merged = True
+        settings.qualify(api, api.root, 7, api.repo)
+        api.associated_numbers.append(9)
+        with self.assertRaisesRegex(ValueError, "uniquely"):
+            settings.qualify(api, api.root, 7, api.repo)
+
+    def test_existing_named_check_from_another_app_is_preserved(self):
+        api = FakeGitHub()
+        settings.execute(api, "apply", "example/project", 7)
+        statuses = next(r["parameters"] for r in api.rule["rules"] if r["type"] == "required_status_checks")
+        statuses["required_status_checks"][0]["integration_id"] = 123
+        api.calls.clear()
+        with self.assertRaisesRegex(ValueError, "another app"):
+            settings.execute(api, "apply", "example/project", 7)
         self.assertFalse(api.calls)
