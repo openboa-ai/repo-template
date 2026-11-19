@@ -15,14 +15,17 @@ GitHub runs **Contribution names** when you open a PR, push commits, or edit its
 
 All changes to the default branch go through a squash PR. Resolve review conversations before merging. The designated code owner reviews changes to CI, ownership, scanner policy, and security reporting. A push check validates the final subject written to the default branch. GitHub Free allows the merger to edit that subject, so keep the default title in the merge dialog.
 
+For a README change, select **Enable auto-merge** on the PR while checks are pending. GitHub squashes the PR once all branch requirements are met. **Required CI** checks that both naming and hygiene jobs finished successfully.
+
 The format follows [Conventional Commits 1.0](https://www.conventionalcommits.org/en/v1.0.0/). Package-specific build and test commands will be documented when the project has an application manifest.
 
 ## Running checks locally
 
-From the repository root, run the naming fixtures and check whitespace before pushing a topic branch.
+Run the required suites and check whitespace before pushing a topic branch. Each suite must run at least one test and report zero skips.
 
 ```sh
-python3 -I -m unittest discover -s .github/scripts -p 'test_*.py'
+python3 -I .github/scripts/run_required_tests.py .github/scripts
+python3 -I .github/scripts/run_required_tests.py tools
 git diff --check origin/HEAD...HEAD
 ```
 

@@ -23,11 +23,11 @@ python3 tools/settings.py plan --repo example-org/my-service
 python3 tools/settings.py apply --repo example-org/my-service
 ```
 
-The plan shows the exact repository-level mutations. Apply reconciles the squash method, default-branch ruleset, Actions settings, secret scanning and private reporting, and Dependabot alerts and security updates. A failed API call identifies the endpoint. Run plan again after correcting the problem and apply the outstanding changes. Only the named ruleset is managed. Additional rulesets and additional required checks are retained. GitHub's per-repository controls and source files have separate lifecycles.
+The plan shows the exact repository-level mutations. Apply reconciles the squash method, native auto-merge option, default-branch ruleset, Actions settings, secret scanning and private reporting, and Dependabot alerts and security updates. A failed API call identifies the endpoint. Run plan again after correcting the problem and apply the outstanding changes. Only the named ruleset is managed. Additional rulesets and additional required checks are retained. GitHub's per-repository controls and source files have separate lifecycles.
 
-## Enroll and verify the two required checks
+## Enroll and verify required checks
 
-Open a same-repository PR targeting the default branch. Check that an invalid title fails, edit the title to a conventional one, and wait for both jobs on the same head to succeed. Supply that PR's actual number.
+Open a same-repository PR targeting the default branch. Check that an invalid title fails, edit the title to a conventional one, and wait for **Contribution names**, **Repository hygiene** and **Required CI** on the same head to succeed. Supply that PR's actual number.
 
 ```sh
 python3 tools/settings.py plan --repo example-org/my-service --qualify-pr 7

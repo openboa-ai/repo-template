@@ -63,6 +63,7 @@ class FakeGitHub:
         self.unavailable = False
         self.mismatched_app = False
         self.failed_latest = False
+        self.missing_job = None
         self.merged = False
         self.associated_numbers = [7]
         self.fail_write = None
@@ -120,7 +121,8 @@ class FakeGitHub:
                                        "event": "pull_request", "pull_requests": [] if self.merged else [{"number": 7}],
                                        "conclusion": "failure" if self.failed_latest else "success"}]}
         if p.startswith("/actions/runs/55/attempts/1/jobs"):
-            return {"jobs": [{"id": i, "head_sha": "abc", "name": name, "conclusion": "success"} for i, name in enumerate(settings.CHECKS)]}
+            return {"jobs": [{"id": i, "head_sha": "abc", "name": name, "conclusion": "success"}
+                             for i, name in enumerate(settings.CHECKS) if name != self.missing_job]}
         if p.startswith("/check-runs/"):
             return {"name": settings.CHECKS[int(p.rsplit("/", 1)[1])], "head_sha": "abc", "conclusion": "success",
                     "app": {"id": 1 if self.mismatched_app else settings.ACTIONS_APP}}
@@ -141,6 +143,26 @@ class SettingsTests(unittest.TestCase):
         self.assertEqual(settings.execute(api, "apply", "example/project")[0]["changes"], [])
         self.assertEqual(api.calls, [])
         self.assertEqual(api.actions["allowed_actions"], "selected")
+        self.assertIs(api.repo["allow_auto_merge"], True)
+
+    def test_existing_two_checks_stay_required_until_the_third_is_proven(self):
+        api = FakeGitHub()
+        settings.execute(api, "apply", "example/project", 7)
+        checks = next(rule["parameters"]["required_status_checks"] for rule in api.rule["rules"]
+                      if rule["type"] == "required_status_checks")
+        checks[:] = [check for check in checks if check["context"] != "Required CI"]
+        preview, code = settings.execute(api, "verify", "example/project")
+        self.assertEqual(code, 1)
+        self.assertTrue(preview["awaiting_required_checks"])
+        api.calls.clear()
+        api.missing_job = "Required CI"
+        with self.assertRaisesRegex(ValueError, "Required CI"):
+            settings.execute(api, "apply", "example/project", 7)
+        self.assertFalse(api.calls)
+        self.assertEqual([c["context"] for c in checks], ["Contribution names", "Repository hygiene"])
+        api.missing_job = None
+        settings.execute(api, "apply", "example/project", 7)
+        self.assertEqual(settings.execute(api, "verify", "example/project")[1], 0)
 
     def test_keep_existing_controls_on_retry(self):
         api = FakeGitHub()

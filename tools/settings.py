@@ -8,9 +8,9 @@ import subprocess
 import sys
 from urllib.parse import quote
 
-CHECKS = ("Contribution names", "Repository hygiene")
+CHECKS = ("Contribution names", "Repository hygiene", "Required CI")
 ACTIONS_APP = 15368  # GitHub Actions on github.com
-MERGE = {"allow_squash_merge": True, "allow_merge_commit": False, "allow_rebase_merge": False,
+MERGE = {"allow_squash_merge": True, "allow_merge_commit": False, "allow_rebase_merge": False, "allow_auto_merge": True,
          "delete_branch_on_merge": True, "squash_merge_commit_title": "PR_TITLE", "squash_merge_commit_message": "PR_BODY"}
 WORKFLOW = ".github/workflows/repository.yml"
 
@@ -174,7 +174,7 @@ def verify_effective(api, repo, *, owners):
     if not any(g.get("strict_required_status_checks_policy") and
                all(any(c["context"] == n and c.get("integration_id") == ACTIONS_APP for c in g["required_status_checks"])
                    for n in CHECKS) for g in groups):
-        raise ValueError("The effective rules do not require both expected check producers.")
+        raise ValueError("The effective rules do not require every expected check from GitHub Actions.")
     if owners:
         api("GET", root + "/contents/.github/CODEOWNERS?ref=" + branch)
         errors = api("GET", root + "/codeowners/errors?ref=" + branch)["errors"]
