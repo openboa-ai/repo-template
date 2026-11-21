@@ -1,4 +1,5 @@
 import copy
+import json
 import subprocess
 import tempfile
 import unittest
@@ -22,14 +23,16 @@ class InitializationTests(unittest.TestCase):
         wf = self.root / ".github/workflows/repository.yml"
         wf.parent.mkdir()
         wf.write_text(('    branches: ["main"]  # starter-default-branch\n') * 2)
-        self.values = ["example/project", "A new service", "@example/maintainers", "trunk"]
+        self.values = ["example/project", "keep the queue moving", "@example/maintainers", "trunk"]
+        self.summary = "Project schedules jobs and reports their outcomes."
 
     def test_initialize_preview_repeat_and_preserve(self):
         before = (self.root / "README.md").read_bytes()
-        changed = initialize.initialize(self.root, *self.values, dry_run=True)
+        changed = initialize.initialize(self.root, *self.values, project_summary=self.summary, dry_run=True)
         self.assertEqual((self.root / "README.md").read_bytes(), before)
-        self.assertEqual(changed, initialize.initialize(self.root, *self.values))
+        self.assertEqual(changed, initialize.initialize(self.root, *self.values, project_summary=self.summary))
         readme = self.root / "README.md"
+        self.assertIn(f"# project\n\n{self.values[1]}\n\n{self.summary}\n", readme.read_text())
         readme.write_text(readme.read_text() + "\nProject instructions\n")
         self.assertEqual(initialize.initialize(self.root, *self.values), [])
         self.assertIn("Project instructions", readme.read_text())
@@ -40,13 +43,41 @@ class InitializationTests(unittest.TestCase):
 
     def test_conflict_or_wrong_remote_is_read_only(self):
         with self.assertRaises(ValueError):
-            initialize.initialize(self.root, "example/wrong", *self.values[1:])
+            initialize.initialize(self.root, "example/wrong", *self.values[1:], project_summary=self.summary)
         owned = self.root / ".github/CODEOWNERS"
         owned.write_text(owned.read_text().replace("@SonSangjoon", "@another"))
         with self.assertRaisesRegex(ValueError, "Preserve local edits"):
-            initialize.initialize(self.root, *self.values)
+            initialize.initialize(self.root, *self.values, project_summary=self.summary)
         self.assertFalse((self.root / initialize.STATE).exists())
         self.assertIn("Repository starter", (self.root / "README.md").read_text())
+
+    def test_new_project_requires_independent_summary(self):
+        readme = self.root / "README.md"
+        before = readme.read_bytes()
+        for summary in (None, "", self.values[1], "Two\nlines", "# Heading", "An <!-- embedded marker -->"):
+            with self.subTest(summary=summary), self.assertRaises(ValueError):
+                initialize.initialize(self.root, *self.values, project_summary=summary)
+        self.assertEqual(readme.read_bytes(), before)
+        self.assertFalse((self.root / initialize.STATE).exists())
+
+    def test_existing_metadata_without_summary_can_adopt_it(self):
+        repo, slogan, reviewer, branch = self.values
+        legacy = {"repo": repo, "description": slogan, "reviewer": reviewer,
+                  "default_branch": branch, "starter_version": 1}
+        (self.root / initialize.STATE).write_text(json.dumps(legacy, indent=2) + "\n")
+        for name, start, end, content in initialize.blocks(legacy):
+            (self.root / name).write_text(f"{start}\n{content}\n{end}\n")
+        workflow = self.root / ".github/workflows/repository.yml"
+        workflow.write_text(workflow.read_text().replace('"main"', '"trunk"'))
+        readme = self.root / "README.md"
+        readme.write_text(readme.read_text() + "\nExisting reader instructions.\n")
+
+        self.assertEqual(initialize.initialize(self.root, *self.values), [])
+        changed = initialize.initialize(self.root, *self.values, project_summary=self.summary)
+        self.assertEqual(changed, ["README.md", initialize.STATE])
+        self.assertIn(f"# project\n\n{slogan}\n\n{self.summary}\n", readme.read_text())
+        self.assertTrue(readme.read_text().endswith("Existing reader instructions.\n"))
+        self.assertEqual(initialize.initialize(self.root, *self.values), [])
 
 
 class FakeGitHub:

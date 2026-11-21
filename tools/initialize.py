@@ -11,7 +11,8 @@ import tempfile
 from pathlib import Path
 
 SEED_NAME = "Repository starter"
-SEED_DESCRIPTION = "A starting point for projects with pull-request checks, secret scanning and repeatable GitHub settings."
+SEED_DESCRIPTION = "A small starting point for OpenBoa repositories, with contribution rules, CI and repeatable GitHub settings."
+SEED_SUMMARY = "This template creates a repository with contribution guides, pull-request checks and a tool for configuring GitHub settings."
 HELP = "https://docs.github.com/en/code-security/security-advisories/guidance-on-reporting-and-writing-information-about-vulnerabilities/privately-reporting-a-security-vulnerability"
 OWNER_PATHS = ("/.github/", "/.gitattributes", "/.gitleaks*", "/SECURITY.md", "/tools/")
 STATE = ".github/starter.json"
@@ -24,15 +25,31 @@ def regular_path(root, relative):
     return path
 
 
+def paragraph_line(text):
+    return (
+        bool(text)
+        and text.strip() == text
+        and len(text.splitlines()) == 1
+        and "<!--" not in text
+        and "-->" not in text
+        and not re.match(r"^(?:[>#<]|[-+*] |[0-9]+[.)] |`{3}|~{3})", text)
+        and not re.fullmatch(r"(?:[-*_] *){3,}", text)
+    )
+
+
 def blocks(meta):
     owner = meta["reviewer"] if meta else "@SonSangjoon"
     name = meta["repo"].split("/")[1] if meta else SEED_NAME
     description = meta["description"] if meta else SEED_DESCRIPTION
+    summary = meta.get("project_summary") if meta else SEED_SUMMARY
+    introduction = f"# {name}\n\n{description}"
+    if summary is not None:
+        introduction += f"\n\n{summary}"
     url = f'https://github.com/{meta["repo"]}/security/advisories/new' if meta else HELP
     report = (f"Send a private report to the maintainers using [GitHub private vulnerability reporting]({url})."
               if meta else "Open this repository's **Security** tab and select **Report a vulnerability** to contact its maintainers privately.")
     return (
-        ("README.md", "<!-- starter:project -->", "<!-- /starter:project -->", f"# {name}\n\n{description}"),
+        ("README.md", "<!-- starter:project -->", "<!-- /starter:project -->", introduction),
         ("SECURITY.md", "<!-- starter:report -->", "<!-- /starter:report -->", report),
         (".github/CODEOWNERS", "# starter:owners", "# /starter:owners", "\n".join(f"{p} {owner}" for p in OWNER_PATHS)),
         (".github/ISSUE_TEMPLATE/config.yml", "    # starter:report", "    # /starter:report", "    url: " + url),
@@ -51,7 +68,7 @@ def managed_block(text, start, end, previous, wanted, filename):
     return "".join(lines[:begin + 1]) + wanted + "\n" + "".join(lines[finish:])
 
 
-def initialize(root, repo, description, reviewer, branch, *, dry_run=False):
+def initialize(root, repo, description, reviewer, branch, *, project_summary=None, dry_run=False):
     root = root.resolve()
     def git(*args):
         return subprocess.check_output(["git", "-C", str(root), *args], text=True).strip()
@@ -64,17 +81,25 @@ def initialize(root, repo, description, reviewer, branch, *, dry_run=False):
         raise ValueError("Destination differs from this checkout's GitHub origin.")
     if not re.fullmatch(r"@[a-zA-Z0-9-]+(?:/[a-zA-Z0-9_-]+)?", reviewer):
         raise ValueError("Use an existing @user or @organization/team with write access.")
-    if not description.strip() or any(x in description for x in ("\n", "\r", "<!--", "-->")):
-        raise ValueError("Provide a one-line description.")
+    if not paragraph_line(description):
+        raise ValueError("Provide the exact one-line GitHub slogan, without surrounding whitespace.")
     # A workflow branch filter is a glob. Accept a literal branch, never a glob.
     if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_./-]*", branch):
         raise ValueError("Use a literal default branch name.")
     git("check-ref-format", "--branch", branch)
-    metadata = {"repo": repo, "description": description, "reviewer": reviewer, "default_branch": branch, "starter_version": 1}
     state = regular_path(root, STATE)
     previous = json.loads(state.read_text()) if state.exists() else None
     if previous and (previous["repo"].lower() != repo.lower() or previous.get("starter_version") != 1):
         raise ValueError("Existing starter metadata belongs to another repository or version.")
+    if project_summary is None:
+        if previous is None:
+            raise ValueError("Provide --project-summary explaining what the project does.")
+        project_summary = previous.get("project_summary")
+    if project_summary is not None and (not paragraph_line(project_summary) or project_summary == description):
+        raise ValueError("Provide a separate one-line project summary, without surrounding whitespace.")
+    metadata = {"repo": repo, "description": description, "reviewer": reviewer, "default_branch": branch, "starter_version": 1}
+    if project_summary is not None:
+        metadata["project_summary"] = project_summary
     updates = {}
     for old, new in zip(blocks(previous), blocks(metadata)):
         filename, start, end, wanted = new
@@ -109,14 +134,17 @@ def initialize(root, repo, description, reviewer, branch, *, dry_run=False):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--repo", required=True)
-    parser.add_argument("--description", required=True)
+    parser.add_argument("--slogan", "--description", dest="description", required=True,
+                        help="Exact wording of the GitHub repository Description.")
+    parser.add_argument("--project-summary", help="One sentence explaining what the project does.")
     parser.add_argument("--reviewer", required=True)
     parser.add_argument("--default-branch", default="main")
     parser.add_argument("--path", type=Path, default=Path.cwd())
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
     try:
-        files = initialize(args.path, args.repo, args.description, args.reviewer, args.default_branch, dry_run=args.dry_run)
+        files = initialize(args.path, args.repo, args.description, args.reviewer, args.default_branch,
+                           project_summary=args.project_summary, dry_run=args.dry_run)
         print(json.dumps({"changed_files": files, "dry_run": args.dry_run}, indent=2))
     except (ValueError, KeyError, OSError, subprocess.CalledProcessError) as error:
         sys.exit(str(error))
