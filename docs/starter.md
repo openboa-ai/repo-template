@@ -2,15 +2,19 @@
 
 ## Create and initialize
 
-1. Choose **Use this template** on the template's GitHub page. Select the destination owner, name and visibility. Copy the default branch only. Clone the new repository, create a topic branch, and work from its root.
-2. Preview the project-specific files. Replace the example destination, description and existing reviewer with your values. Use `--default-branch` if the destination uses a branch other than `main`.
+1. Choose **Use this template** on the template's GitHub page. Select the destination owner, name and visibility. Put the project's slogan in GitHub's **Description** field. Copy the default branch only. Clone the new repository, create a topic branch, and work from its root.
+2. Preview the project-specific files. Pass the same slogan exactly as it appears on GitHub and a separate sentence about what the project does. Use `--default-branch` if the destination uses a branch other than `main`.
 
    ```sh
-   python3 tools/initialize.py --repo example-org/my-service --description "A job scheduler" --reviewer @maintainer --dry-run
-   python3 tools/initialize.py --repo example-org/my-service --description "A job scheduler" --reviewer @maintainer
+   python3 tools/initialize.py --repo example-org/my-service --slogan "good things come to those who queue" --project-summary "My Service schedules jobs and reports whether they finish." --reviewer @maintainer --dry-run
+   python3 tools/initialize.py --repo example-org/my-service --slogan "good things come to those who queue" --project-summary "My Service schedules jobs and reports whether they finish." --reviewer @maintainer
    ```
 
-   The reviewer must already have write access. The initializer updates marked sections, the workflow's branch filters and `.github/starter.json`. It checks the origin, preserves text outside its markers, and stops on a conflicting edit. Review the diff and open a PR. The generated seed initially contains the template source's reviewer. Set the intended reviewer before enrolling the destination. The generic reporting link explains how to open the destination's Security tab until initialization replaces it.
+   The README opens with the project name, the exact slogan and the project summary. Compare the slogan with the GitHub Description before opening the PR. The initializer edits local files only. It checks the origin, updates marked sections, branch filters and `.github/starter.json`, preserves text outside the markers and stops on a conflicting edit.
+
+   Repeating initialization on an existing repository without a summary preserves its existing introduction structure. For an existing README that already has an explanation outside the markers, keep a single copy when adopting the new structure. `--description` remains an alias for `--slogan`.
+
+   The reviewer must already have write access. The generated seed initially contains the template source's reviewer. Set the intended reviewer before enrolling the destination. The generic reporting link explains how to open the destination's Security tab until initialization replaces it.
 
 3. Confirm that source branch protection and GitHub Actions are supported for the destination's visibility and plan. New public repositories on GitHub Free for organizations support the branch rules used here. Private repositories on that plan require a separate decision about protection. [GitHub rulesets](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/about-rulesets)
 

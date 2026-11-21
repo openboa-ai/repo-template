@@ -5,7 +5,7 @@ Create a GitHub template named `repo-template` in the OpenBoa organization. The 
 ## Files and responsibilities
 
 - The seed includes Git and editor defaults, minimal contribution and reporting guides, issue and PR forms, CODEOWNERS, a weekly GitHub Actions Dependabot group, and the tested read-only naming, workflow lint, whitespace and Gitleaks checks. Generic documentation explains how to initialize a generated repository. No application, package release, product name, product history, or default license belongs in the seed.
-- Provide local initialization with explicit destination identity, description, default branch and an existing reviewer. Fill destination-specific README, CODEOWNERS and private reporting links. Validate inputs and preserve user-edited project files on repeat runs. Initialization only changes working-tree files and is reviewed in a normal PR.
+- Provide local initialization with explicit destination identity, the exact GitHub slogan, a separate project summary, default branch and an existing reviewer. Start the README with the project name, slogan and summary in that order. Fill CODEOWNERS and private reporting links. Validate inputs and preserve user-edited project files on repeat runs. Existing starter metadata and the legacy slogan option remain readable. Initialization only changes working-tree files and is reviewed in a normal PR.
 - Keep trusted CI installers at an immutable reviewed revision. Do not introduce an organization-wide privileged workflow. Template updates reach existing repositories through explicit reviewed updates. The template itself has a documented update and release process.
 - Check topic branch names and Conventional Commit-style PR titles. Permit any intermediate commit message. Verify the actual squash subject after a default-branch push. Account for GitHub's single initial commit when generating a new repository, without exempting later commits from naming checks.
 
@@ -19,7 +19,7 @@ Create a GitHub template named `repo-template` in the OpenBoa organization. The 
 ## Acceptance evidence
 
 1. Identical second initialization and setup plans produce no changes, including against the two existing baseline repositories. A simulation covers a new repository, existing unrelated rules, unavailable features, missing producers and failed or partial requests.
-2. A clean local generation with different destination information has the correct owner and reporting URL, retains no example product branding, and leaves existing user content intact.
+2. A clean local generation presents the destination name, exact slogan and independent project summary in order. It sets the correct owner and reporting URL and preserves user content on repeat, legacy, and conflicting-edit paths.
 3. Correct and invalid PR titles, branch types, Dependabot identity, freely named intermediate commits, initial generated history and final squash subjects have tests. Workflow lint and secret checks pass.
 4. Verify template status, effective default-branch protections, public or private visibility as selected, PR CI and main CI. Report local generation tests separately from a live GitHub generation if creating a separate remote test repository is outside scope.
 
